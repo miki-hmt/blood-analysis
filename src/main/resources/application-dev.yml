@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://47.99.247.237:3306/dcweb?allowMultiQueries=true&serverTimezone=GMT%2B8
+    username: root
+    password: 123456
+    hikari:
+      #线程池名称 默认：自动生成
+      pool-name: blood-rel
+      #连接超时时 默认值：30000（30秒）
+      connection-timeout: 50000
+      #最大实际连接数 默认值：10
+      maximum-pool-size: 50
+      #最小空闲连接数 默认值：10
+      minimum-idle: 15
+      #控制池中连接的最大生存期 默认值：1800000（30分钟）
+      max-lifetime: 1800000
+
+  #neo4j 数据库配置
+  data:
+    neo4j:
+      uri: http://47.99.247.237:7474
+      username: neo4j
+      password: 123456
+
+#Neo4j驱动模式配置
+blotUri: bolt://47.99.247.237:7687
+
+
+

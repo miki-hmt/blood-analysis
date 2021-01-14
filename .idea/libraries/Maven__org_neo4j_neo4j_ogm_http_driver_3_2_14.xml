@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.neo4j:neo4j-ogm-http-driver:3.2.14">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/neo4j/neo4j-ogm-http-driver/3.2.14/neo4j-ogm-http-driver-3.2.14.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/neo4j/neo4j-ogm-http-driver/3.2.14/neo4j-ogm-http-driver-3.2.14-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/neo4j/neo4j-ogm-http-driver/3.2.14/neo4j-ogm-http-driver-3.2.14-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

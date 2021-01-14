@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>血缘分析</title>
+    <link rel="icon" th:href="@{rel.ico}" type="image/x-icon">
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        html,body {
+            width: 100%;
+            height: 100%;
+            background: rgb(245, 245, 245);
+        }
+        .main {
+            width: 100%;
+            height: 100%;
+            position:relative;
+        }
+        .graphDiv {
+            width: 100%;
+            height: 100%;
+        }
+        .menu-title {
+            font-weight: bold;
+            font-size: 20px;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        .menu-title img {
+            vertical-align: middle;
+            margin-right: 15px;
+        }
+
+        .rel-menu {
+            width: 300px;
+            z-index: 99;
+            background: rgba(255, 255, 255, 0.5);
+            position:absolute;
+            top: 10px;
+            left: 10px;
+            bottom: 10px;
+            border: 2px solid rgb(248, 248, 255);
+            border-radius: 8px;
+            box-shadow: 0 0 20px #bac6c6;
+        }
+
+        .rel-tip {
+            z-index: 100;
+            position:absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+
+        .node-menu {
+            display: none;
+            position: absolute;
+            opacity: 0;
+            margin: 0;
+            padding: 8px 0;
+            z-index: 999;
+            box-shadow: 0 5px 5px -3px rgba(0, 0, 0, .2), 0 8px 10px 1px rgba(0, 0, 0, .14), 0 3px 14px 2px rgba(0, 0, 0, .12);
+            list-style: none;
+            background-color: #ffffff;
+            border-radius: 4px;
+        }
+
+        .node-menu-item {
+            display: block;
+            position: relative;
+            min-width: 60px;
+            margin: 0;
+            padding: 6px 16px;
+            font: bold 12px sans-serif;
+            color: rgba(0, 0, 0, .87);
+            cursor: pointer;
+        }
+
+        .node-menu-item::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            content: "";
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+        }
+
+        .node-menu-item:hover::before {
+            opacity: .04;
+        }
+
+        .node-menu .menu {
+            top: -8px;
+            left: 100%;
+        }
+
+        .node-show-menu, .node-menu-item:hover > .menu {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/metro/easyui.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/icon.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{gojs/ZoomSlider.css}">
+    <!-- 根路径 -->
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+        ctx = /*[[@{/}]]*/ '';
+        /*]]>*/
+    </script>
+    <script type="text/javascript" th:src="@{gojs/go.js}"></script>
+    <script type="text/javascript" th:src="@{gojs/ZoomSlider.js}"></script>
+    <script type="text/javascript" th:src="@{jquery/jquery.min.js}"></script>
+    <script type="text/javascript" th:src="@{jquery-easyui-1.9.7/jquery.easyui.min.js}"></script>
+    <script type="text/javascript" th:src="@{easyui-common.js}"></script>
+    <script type="text/javascript" th:src="@{common.js}"></script>
+
+    <script type="text/javascript" th:inline="javascript">
+        var myDiagram;
+
+        function initDiagram() {
+            if (window.goSamples) goSamples();  // init for these samples -- you don't need to call this
+            var $ = go.GraphObject.make;  // for conciseness in defining templates
+
+            var cxElement = document.getElementById("contextMenu");
+
+            var myContextMenu = $(go.HTMLInfo, {
+                show: showContextMenu,
+                hide: hideContextMenu
+            });
+
+            myDiagram =
+                $(go.Diagram, "myDiagramDiv",
+                    {
+                        layout: $(go.TreeLayout,
+                            { comparer: go.LayoutVertex.smartComparer}),
+                        validCycle: go.Diagram.CycleNotDirected,  // don't allow loops
+                        // For this sample, automatically show the state of the diagram's model on the page
+                        "ModelChanged": function(e) {
+                            if (e.isTransactionFinished) showModel();
+                        },
+                        "undoManager.isEnabled": true
+                    });
+
+            // This template is a Panel that is used to represent each item in a Panel.itemArray.
+            // The Panel is data bound to the item object.
+            var fieldTemplate =
+                $(go.Panel, "TableRow",  // this Panel is a row in the containing Table
+                    new go.Binding("portId", "name"),  // this Panel is a "port"
+                    {
+                        background: "transparent",  // so this port's background can be picked by the mouse
+                        fromSpot: go.Spot.LeftRightSides,  // links only go from the right side to the left side
+                        toSpot: go.Spot.LeftRightSides,
+                        // allow drawing links from or to this port:
+                        fromLinkable: true, toLinkable: true,
+                    },
+                    {
+                        click: function(e, item) {
+                            // assume "transparent" means not "selected", for items
+                           var oldskips = item.diagram.skipsUndoManager;
+                             item.diagram.skipsUndoManager = true;
+                             if (item.background === "transparent") {
+                                 item.background = "dodgerblue";
+                             } else {
+                                 item.background = "transparent";
+                             }
+                             item.diagram.skipsUndoManager = oldskips;
+                        }
+                    },
+                    $(go.Shape,
+                        {
+                            width: 12, height: 12, column: 0, strokeWidth: 2, margin: 4,
+                            // but disallow drawing links from or to this shape:
+                            fromLinkable: false, toLinkable: false
+                        },
+                        new go.Binding("figure", "figure"),
+                        new go.Binding("fill", "color")),
+                    $(go.TextBlock,
+                        {
+                            margin: new go.Margin(0, 2), column: 1, font: "bold 13px sans-serif",
+                            // and disallow drawing links from or to this text:
+                            fromLinkable: false, toLinkable: false,
+                            toolTip:
+                                $("ToolTip",
+                                    $(go.TextBlock, { margin: 4 },
+                                        new go.Binding("text", "name"))
+                                )
+                        },
+                        { editable: true },
+                        new go.Binding("text", "name").makeTwoWay()),
+                    $(go.TextBlock,
+                        { margin: new go.Margin(0, 2), column: 2, font: "13px sans-serif",
+                            toolTip:
+                                $("ToolTip",
+                                    $(go.TextBlock, { margin: 4 },
+                                        new go.Binding("text", "info"))
+                                )
+                        },
+                        { editable: true },
+                        new go.Binding("text", "info").makeTwoWay())
+                );
+
+            // This template represents a whole "record".
+            myDiagram.nodeTemplate =
+                $(go.Node, "Auto",
+                    { contextMenu: myContextMenu},
+                    new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                    // this rectangular shape surrounds the content of the node
+                    $(go.Shape,
+                        { fill: "#EEEEEE"}),
+                    // the content consists of a header and a list of items
+                    $(go.Panel, "Vertical",
+                        // this is the header for the whole node
+                        $(go.Panel, "Auto",
+                            { stretch: go.GraphObject.Horizontal, width: 200 },  // as wide as the whole node
+                            $(go.Shape,
+                                { fill: "#1570A6", stroke: null }),
+                            $(go.TextBlock,
+                                {
+                                    alignment: go.Spot.Left,
+                                    margin: 1,
+                                    stroke: "white",
+                                    textAlign: "center",
+                                    font: "bold 8pt sans-serif"
+                                },
+                                new go.Binding("text", "srType")),
+                            $(go.TextBlock,
+                                {
+                                    alignment: go.Spot.Center,
+                                    margin: 2,
+                                    stroke: "white",
+                                    textAlign: "center",
+                                    font: "bold 12pt sans-serif"
+                                },
+                                new go.Binding("text", "key")),
+                            //收缩按钮
+                            $("PanelExpanderButton", "TABLE",
+                                { row: 0, alignment: go.Spot.TopRight })),
+
+                        $(go.Panel, "Table",
+                            {
+                                name: "TABLE",
+                                padding: 2,
+                                minSize: new go.Size(100, 10),
+                                defaultStretch: go.GraphObject.Horizontal,
+                                itemTemplate: fieldTemplate,
+                                width: 200
+                            },
+                            new go.Binding("itemArray", "fields")
+                        )
+                    )
+                );
+
+            myDiagram.linkTemplate =
+                $(go.Link,
+                    { relinkableFrom: true, relinkableTo: true, toShortLength: 4 },
+                    $(go.Shape, { strokeWidth: 1.5 },new go.Binding('stroke', 'color')),
+                    $(go.Shape, { toArrow: "Standard"},new go.Binding('stroke', 'color')),
+
+                );
+
+            myDiagram.model =
+                $(go.GraphLinksModel,
+                    {
+                        copiesArrays: true,
+                        copiesArrayObjects: true,
+                        linkFromPortIdProperty: "fromPort",
+                        linkToPortIdProperty: "toPort",
+                        nodeDataArray: [],
+                        linkDataArray: [],
+
+                    });
+
+            zoomSlider = new ZoomSlider(myDiagram);
+
+            myDiagram.contextMenu = myContextMenu;
+
+            // this is a bit inefficient, but should be OK for normal-sized graphs with reasonable numbers of items per node
+            function findAllSelectedItems() {
+                var items = [];
+                for (var nit = myDiagram.nodes; nit.next();) {
+                    var node = nit.value;
+                    var table = node.findObject("TABLE");
+                    if (table) {
+                        for (var iit = table.elements; iit.next();) {
+                            var itempanel = iit.value;
+                            if (itempanel.background !== "transparent") items.push(itempanel);
+                        }
+                    }
+                }
+                return items;
+            }
+
+            // Override the standard CommandHandler deleteSelection behavior.
+            // If there are any selected items, delete them instead of deleting any selected nodes or links.
+            myDiagram.commandHandler.canDeleteSelection = function() {
+                // true if there are any selected deletable nodes or links,
+                // or if there are any selected items within nodes
+                return go.CommandHandler.prototype.canDeleteSelection.call(myDiagram.commandHandler) ||
+                    findAllSelectedItems().length > 0;
+            };
+
+            /*myDiagram.commandHandler.deleteSelection = function() {
+                var items = findAllSelectedItems();
+                if (items.length > 0) {  // if there are any selected items, delete them
+                    myDiagram.startTransaction("delete items");
+                    for (var i = 0; i < items.length; i++) {
+                        var panel = items[i];
+                        var nodedata = panel.part.data;
+                        var itemarray = nodedata.fields;
+                        var itemdata = panel.data;
+                        var itemindex = itemarray.indexOf(itemdata);
+                        myDiagram.model.removeArrayItem(itemarray, itemindex);
+                    }
+                    myDiagram.commitTransaction("delete items");
+                } else {  // otherwise just delete nodes and/or links, as usual
+                    go.CommandHandler.prototype.deleteSelection.call(myDiagram.commandHandler);
+                }
+            };*/
+
+            showModel();  // show the diagram's initial model
+
+            function showModel() {
+                    document.getElementById("mySavedModel").textContent = myDiagram.model.toJson();
+            }
+
+            function showContextMenu(obj, diagram, tool) {
+                // Show only the relevant buttons given the current state.
+                var cmd = diagram.commandHandler;
+                var hasMenuItem = false;
+                function maybeShowItem(elt, pred) {
+                    if (pred) {
+                        elt.style.display = "block";
+                        hasMenuItem = true;
+                    } else {
+                        elt.style.display = "none";
+                    }
+                }
+                maybeShowItem(document.getElementById("pro1"), cmd.canCutSelection());
+                maybeShowItem(document.getElementById("pro2"), cmd.canCopySelection());
+
+                // Now show the whole context menu element
+                if (hasMenuItem) {
+                    cxElement.classList.add("node-show-menu");
+                    // we don't bother overriding positionContextMenu, we just do it here:
+                    var mousePt = diagram.lastInput.viewPoint;
+                    cxElement.style.left = mousePt.x + 5 + "px";
+                    cxElement.style.top = mousePt.y + "px";
+                }
+
+                // Optional: Use a `window` click listener with event capture to
+                //           remove the context menu if the user clicks elsewhere on the page
+                window.addEventListener("click", hideCX, true);
+            }
+
+            function hideContextMenu() {
+                cxElement.classList.remove("node-show-menu");
+                // Optional: Use a `window` click listener with event capture to
+                //           remove the context menu if the user clicks elsewhere on the page
+                window.removeEventListener("click", hideCX, true);
+            }
+            function hideCX() {
+                if (myDiagram.currentTool instanceof go.ContextMenuTool) {
+                    myDiagram.currentTool.doCancel();
+                }
+            }
+
+        }
+    </script>
+</head>
+<body>
+    <div class="main">
+        <div id="myDiagramDiv" class="graphDiv"></div>
+        <ul id="contextMenu" class="node-menu">
+            <li id="pro1" class="node-menu-item" onclick="cxcommand(1)">属性</li>
+            <li id="pro2" class="node-menu-item" onclick="cxcommand(2)">列映射</li>
+            <li id="pro3" class="node-menu-item" onclick="cxcommand(3)">取消</li>
+            <li id="pro4" class="node-menu-item" onclick="cxcommand(4)">新增列</li>
+        </ul>
+        <textarea id="mySavedModel" style="width:100%;height:300px"></textarea>
+    </div>
+
+    <div class="rel-menu">
+        <div class="menu-title"><img th:src="@{images/rel-logo.png}">血缘分析</div>
+        <div style="margin-bottom:20px;margin-top: 20px">
+            <label>资源库：</label>
+            <input id="dbSource" name="dbSource" style="width:100%">
+        </div>
+        <div>
+            <label>资源表：</label>
+            <input class="easyui-searchbox" data-options="prompt:'请输入表名',searcher:doSearch" style="width:100%">
+        </div>
+    </div>
+
+    <div class="rel-tip">
+        <img th:src="@{images/rel-tip.png}" class="rel-tip-img" title="温馨提示：&#10;1. 选中节点右键，相关操作选项&#10;2. 双击列名、备注可进行编辑">
+    </div>
+
+</body>
+<script type="text/javascript" th:inline="javascript">
+    /*<![CDATA[*/
+    var tableName;
+    var dbUrl;
+
+    $(function(){
+        init();
+        initDiagram();
+    });
+
+    function init() {
+        $('#dbSource').combobox({
+            url: ctx + 'tab/getDbSource',
+            editable: false,
+            panelHeight: '200',
+            onSelect: function(rec){
+                dbUrl = rec.value
+            }
+        });
+    }
+
+    var data_obj;
+    function doSearch(value){
+        tableName = value;
+        if (StringUtil.isEmpty(tableName)) {
+            alert("表名不能为空")
+            return;
+        }
+        if (StringUtil.isEmpty(dbUrl)) {
+            alert("数据源不能为空")
+            return;
+        }
+
+
+        $.ajax({
+            url: ctx + 'tab/getGoJsGraphModel',
+            data: {
+                tableName: tableName,
+                url: dbUrl
+            },
+            type: "POST",
+            dataType: "json",
+            success: function(result) {
+                if (result.success) {
+                    if (result.data == null) {
+                        myDiagram.model.nodeDataArray = [];
+                        myDiagram.model.linkDataArray = [];
+                    } else {
+                        data_obj = result.data;
+                        myDiagram.model.nodeDataArray = result.data.goJsNodes;
+                        myDiagram.model.linkDataArray = result.data.goJsLinks;
+                    }
+                }
+            }
+        });
+    }
+
+    function cxcommand(type) {
+        var nodeOrLinkList = myDiagram.selection;
+        nodeOrLinkList.each(function(nodeOrLink) {
+            if(nodeOrLink instanceof go.Node){
+                var dvUrl = nodeOrLink.data.dbUrl;
+                var tableName = nodeOrLink.data.key;
+                if (type == 1) {
+                    openNodeDetails(nodeOrLink.data.nodeId)
+                } else if (type == 2) {
+                    openColMaps(nodeOrLink.data.nodeId)
+                } else if (type == 3) {
+                    cancelShowColMap();
+                } else if (type == 4) {
+                    insertIntoArray();
+                }
+            }
+        });
+    }
+
+    function openNodeDetails(nodeId) {
+        Frame.openDialog({
+            url: ctx + 'nodeDetails',
+            data: {
+                nodeId: nodeId
+            }
+
+        });
+    }
+
+    function openColMaps(nodeId) {
+        var newArr = [];
+        for (var i = 0; i < data_obj.goJsLinks.length; i++) {
+            newArr.push({
+                from : data_obj.goJsLinks[i].from,
+                to: data_obj.goJsLinks[i].to,
+                color: data_obj.goJsLinks[i].color
+            })
+        }
+
+        $.ajax({
+            url: ctx + 'col/colMap',
+            data: {
+                nodeId: nodeId,
+            },
+            type: "POST",
+            dataType: "json",
+            success: function(result) {
+                if (result.success) {
+                    if (result.data != null) {
+                        for (var i = 0; i < result.data.length; i++) {
+                            newArr.push({
+                                from : result.data[i].scol.tableName,
+                                fromPort: result.data[i].scol.colName,
+                                to: result.data[i].rcol.tableName,
+                                toPort: result.data[i].rcol.colName,
+                            });
+                        }
+                        myDiagram.model.linkDataArray = newArr;
+                    }
+                }
+            }
+        });
+    }
+
+    function cancelShowColMap() {
+        var newArr = [];
+        for (var i = 0; i < data_obj.goJsLinks.length; i++) {
+            newArr.push({
+                from : data_obj.goJsLinks[i].from,
+                to: data_obj.goJsLinks[i].to,
+                color: data_obj.goJsLinks[i].color
+            })
+        }
+        myDiagram.model.linkDataArray = newArr;
+    }
+
+    var addIndex = 0;
+    function insertIntoArray() {
+        var n = myDiagram.selection.first();
+        if (n === null) return;
+        var d = n.data;
+        myDiagram.startTransaction("insertIntoTable");
+        myDiagram.model.insertArrayItem(d.fields, d.fields.length, {
+            name: 'col_' + addIndex,
+            info: 'info_' + addIndex,
+            figure: null,
+            color: null
+        });
+        myDiagram.commitTransaction("insertIntoTable");
+        addIndex++;
+    }
+
+    /*]]>*/
+</script>
+</html>

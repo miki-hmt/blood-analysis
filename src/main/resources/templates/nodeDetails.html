@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>节点信息</title>
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/metro/easyui.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/icon.css}">
+    <!-- 根路径 -->
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+        ctx = /*[[@{/}]]*/ '';
+        /*]]>*/
+    </script>
+    <script type="text/javascript" th:src="@{jquery/jquery.min.js}"></script>
+    <script type="text/javascript" th:src="@{jquery-easyui-1.9.7/jquery.easyui.min.js}"></script>
+</head>
+<body>
+
+    <div class="easyui-panel" title="表信息" style="width:100%">
+        <form id="ff">
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="url" style="width:100%;" data-options="label:'数据源:'" readonly="true" th:value="${node.url}">
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="dbType" style="width:100%" data-options="label:'类型:'" readonly="true" th:value="${node.dbType}">
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="tableName" style="width:100%" data-options="label:'表名:'" readonly="true" th:value="${node.tableName}">
+            </div>
+        </form>
+    </div>
+
+    <div style="margin:10px 0;"></div>
+    <div class="easyui-panel" title="列信息" style="width:100%;">
+        <table class="easyui-datagrid">
+            <thead>
+            <tr>
+                <th data-options="field:'colName'" style="width: 25%">列名</th>
+                <th data-options="field:'colType'" style="width: 25%">类型</th>
+                <th data-options="field:'comment'" style="width: 50%">注释</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="col,colStat : ${node.columns}">
+                <td th:text="${col.colName}"></td>
+                <td th:text="${col.colType}"></td>
+                <td th:text="${col.comment}"></td>
+            </tr>
+
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

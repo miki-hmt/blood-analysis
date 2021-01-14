@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>血缘分析</title>
+    <style>
+        .draggable {
+            font: bold 16px sans-serif;
+            width: 140px;
+            height: 20px;
+            text-align: center;
+            background: white;
+            cursor: move;
+            margin-top: 20px;
+        }
+
+        .palettezone {
+            width: 160px;
+            height: 400px;
+            background: lightblue;
+            padding: 10px;
+            padding-top: 1px;
+            float: left;
+        }
+        .node-menu {
+            display: none;
+            position: absolute;
+            opacity: 0;
+            margin: 0;
+            padding: 8px 0;
+            z-index: 999;
+            box-shadow: 0 5px 5px -3px rgba(0, 0, 0, .2), 0 8px 10px 1px rgba(0, 0, 0, .14), 0 3px 14px 2px rgba(0, 0, 0, .12);
+            list-style: none;
+            background-color: #ffffff;
+            border-radius: 4px;
+        }
+
+        .node-menu-item {
+            display: block;
+            position: relative;
+            min-width: 60px;
+            margin: 0;
+            padding: 6px 16px;
+            font: bold 12px sans-serif;
+            color: rgba(0, 0, 0, .87);
+            cursor: pointer;
+        }
+
+        .node-menu-item::before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            pointer-events: none;
+            content: "";
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+        }
+
+        .node-menu-item:hover::before {
+            opacity: .04;
+        }
+
+        .node-menu .menu {
+            top: -8px;
+            left: 100%;
+        }
+
+        .node-show-menu, .node-menu-item:hover > .menu {
+            display: block;
+            opacity: 1;
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/metro/easyui.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/icon.css}">
+    <!-- 根路径 -->
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+        ctx = /*[[@{/}]]*/ '';
+        /*]]>*/
+    </script>
+    <script type="text/javascript" th:src="@{gojs/go.js}"></script>
+    <script type="text/javascript" th:src="@{jquery/jquery.min.js}"></script>
+    <script type="text/javascript" th:src="@{jquery-easyui-1.9.7/jquery.easyui.min.js}"></script>
+    <script type="text/javascript" th:src="@{easyui-common.js}"></script>
+    <script type="text/javascript" th:src="@{common.js}"></script>
+
+    <script type="text/javascript" th:inline="javascript">
+        var i = 1;
+        function init() {
+            if (window.goSamples) goSamples();  // init for these samples -- you don't need to call this
+
+            // *********************************************************
+            // First, set up the infrastructure to do HTML drag-and-drop
+            // *********************************************************
+
+            var dragged = null; // A reference to the element currently being dragged
+
+            // highlight stationary nodes during an external drag-and-drop into a Diagram
+            function highlight(node) {  // may be null
+                var oldskips = myDiagram.skipsUndoManager;
+                myDiagram.skipsUndoManager = true;
+                myDiagram.startTransaction("highlight");
+                if (node !== null) {
+                    myDiagram.highlight(node);
+                } else {
+                    myDiagram.clearHighlighteds();
+                }
+                myDiagram.commitTransaction("highlight");
+                myDiagram.skipsUndoManager = oldskips;
+            }
+
+            // This event should only fire on the drag targets.
+            // Instead of finding every drag target,
+            // we can add the event to the document and disregard
+            // all elements that are not of class "draggable"
+            document.addEventListener("dragstart", function(event) {
+                if (event.target.className !== "draggable") return;
+                // Some data must be set to allow drag
+                event.dataTransfer.setData("srTypeName", event.target.textContent);
+                event.dataTransfer.setData("srType", event.target.title);
+
+                // store a reference to the dragged element and the offset of the mouse from the center of the element
+                dragged = event.target;
+                dragged.offsetX = event.offsetX - dragged.clientWidth / 2;
+                dragged.offsetY = event.offsetY - dragged.clientHeight / 2;
+                // Objects during drag will have a red border
+                event.target.style.border = "2px solid red";
+            }, false);
+
+            // This event resets styles after a drag has completed (successfully or not)
+            document.addEventListener("dragend", function(event) {
+                // reset the border of the dragged element
+                dragged.style.border = "";
+                highlight(null);
+            }, false);
+
+            // Next, events intended for the drop target - the Diagram div
+
+            var div = document.getElementById("myDiagramDiv");
+            div.addEventListener("dragenter", function(event) {
+                // Here you could also set effects on the Diagram,
+                // such as changing the background color to indicate an acceptable drop zone
+
+                // Requirement in some browsers, such as Internet Explorer
+                event.preventDefault();
+            }, false);
+
+            div.addEventListener("dragover", function(event) {
+                // We call preventDefault to allow a drop
+                // But on divs that already contain an element,
+                // we want to disallow dropping
+
+                if (this === myDiagram.div) {
+                    var can = event.target;
+                    var pixelratio = window.PIXELRATIO;
+
+                    // if the target is not the canvas, we may have trouble, so just quit:
+                    if (!(can instanceof HTMLCanvasElement)) return;
+
+                    var bbox = can.getBoundingClientRect();
+                    var bbw = bbox.width;
+                    if (bbw === 0) bbw = 0.001;
+                    var bbh = bbox.height;
+                    if (bbh === 0) bbh = 0.001;
+                    var mx = event.clientX - bbox.left * ((can.width / pixelratio) / bbw);
+                    var my = event.clientY - bbox.top * ((can.height / pixelratio) / bbh);
+                    var point = myDiagram.transformViewToDoc(new go.Point(mx, my));
+                    var curnode = myDiagram.findPartAt(point, true);
+                    if (curnode instanceof go.Node) {
+                        highlight(curnode);
+                    } else {
+                        highlight(null);
+                    }
+                }
+
+                if (event.target.className === "dropzone") {
+                    // Disallow a drop by returning before a call to preventDefault:
+                    return;
+                }
+
+                // Allow a drop on everything else
+                event.preventDefault();
+            }, false);
+
+            div.addEventListener("dragleave", function(event) {
+                // reset background of potential drop target
+                if (event.target.className == "dropzone") {
+                    event.target.style.background = "";
+                }
+                highlight(null);
+            }, false);
+
+
+
+
+            div.addEventListener("drop", function(event) {
+                // prevent default action
+                // (open as link for some elements in some browsers)
+                event.preventDefault();
+
+                // Dragging onto a Diagram
+                if (this === myDiagram.div) {
+                    var can = event.target;
+                    var pixelratio = window.PIXELRATIO;
+
+                    // if the target is not the canvas, we may have trouble, so just quit:
+                    if (!(can instanceof HTMLCanvasElement)) return;
+
+                    var bbox = can.getBoundingClientRect();
+                    var bbw = bbox.width;
+                    if (bbw === 0) bbw = 0.001;
+                    var bbh = bbox.height;
+                    if (bbh === 0) bbh = 0.001;
+                    var mx = event.clientX - bbox.left * ((can.width / pixelratio) / bbw) - dragged.offsetX;
+                    var my = event.clientY - bbox.top * ((can.height / pixelratio) / bbh) - dragged.offsetY;
+                    var point = myDiagram.transformViewToDoc(new go.Point(mx, my));
+                    myDiagram.startTransaction('new node');
+                    myDiagram.model.addNodeData({
+                    //    location: point,
+                        srType: event.dataTransfer.getData('srType'),
+                        srTypeName: event.dataTransfer.getData('srTypeName'),
+                        key: randomText(),
+                     //   color: "lightyellow"
+                    });
+                    myDiagram.commitTransaction('new node');
+
+
+                }
+
+                // If we were using drag data, we could get it here, ie:
+                // var data = event.dataTransfer.getData('text');
+            }, false);
+
+            // *********************************************************
+            // Second, set up a GoJS Diagram
+            // *********************************************************
+
+            var $ = go.GraphObject.make;  // for conciseness in defining templates
+
+            var cxElement = document.getElementById("contextMenu");
+
+            var myContextMenu = $(go.HTMLInfo, {
+                show: showContextMenu,
+                hide: hideContextMenu
+            });
+
+            myDiagram = $(go.Diagram, "myDiagramDiv",  // create a Diagram for the DIV HTML element
+                {
+                    "undoManager.isEnabled": true
+                });
+            window.PIXELRATIO = myDiagram.computePixelRatio(); // constant needed to determine mouse coordinates on the canvas
+
+
+            var fieldTemplate =
+                $(go.Panel, "TableRow",  // this Panel is a row in the containing Table
+                    new go.Binding("portId", "name"),  // this Panel is a "port"
+                    {
+                        background: "transparent",  // so this port's background can be picked by the mouse
+                        fromSpot: go.Spot.LeftRightSides,  // links only go from the right side to the left side
+                        toSpot: go.Spot.LeftRightSides,
+                        // allow drawing links from or to this port:
+                        fromLinkable: true, toLinkable: true
+                    },
+                    { // allow the user to select items -- the background color indicates whether "selected"
+                        //?? maybe this should be more sophisticated than simple toggling of selection
+                        click: function(e, item) {
+                            // assume "transparent" means not "selected", for items
+                            var oldskips = item.diagram.skipsUndoManager;
+                            item.diagram.skipsUndoManager = true;
+                            if (item.background === "transparent") {
+                                item.background = "dodgerblue";
+                            } else {
+                                item.background = "transparent";
+                            }
+                            item.diagram.skipsUndoManager = oldskips;
+                        }
+                    },
+                    $(go.Shape,
+                        {
+                            width: 12, height: 12, column: 0, strokeWidth: 2, margin: 4,
+                            // but disallow drawing links from or to this shape:
+                            fromLinkable: false, toLinkable: false
+                        },
+                        new go.Binding("figure", "figure"),
+                        new go.Binding("fill", "color")),
+                    $(go.TextBlock,
+                        {
+                            margin: new go.Margin(0, 2), column: 1, font: "bold 13px sans-serif",
+                            // and disallow drawing links from or to this text:
+                            fromLinkable: false, toLinkable: false
+                        },
+                        new go.Binding("text", "name")),
+                    $(go.TextBlock,
+                        { margin: new go.Margin(0, 2), column: 2, font: "13px sans-serif" },
+                        new go.Binding("text", "info"))
+                );
+
+            // define a simple Node template
+            // This template represents a whole "record".
+            myDiagram.nodeTemplate =
+                $(go.Node, "Auto",
+                    { contextMenu: myContextMenu },
+                    new go.Binding("location", "loc", go.Point.parse).makeTwoWay(go.Point.stringify),
+                    // this rectangular shape surrounds the content of the node
+                    $(go.Shape,
+                        { fill: "#EEEEEE"}),
+                    // the content consists of a header and a list of items
+                    $(go.Panel, "Vertical",
+                        // this is the header for the whole node
+
+
+                        $(go.Panel, "Auto",
+                            { stretch: go.GraphObject.Horizontal },  // as wide as the whole node
+                            $(go.Shape,
+                                { fill: "#1570A6", stroke: null,width: 222 }),
+
+                            $(go.TextBlock,
+                                {
+                                    alignment: go.Spot.Left,
+                                    margin: 1,
+                                    stroke: "white",
+                                    textAlign: "center",
+                                    font: "bold 8pt sans-serif"
+                                },
+                                new go.Binding("text", "srTypeName")),
+                            $(go.TextBlock,
+                                {
+                                    alignment: go.Spot.Center,
+                                    margin: 2,
+                                    stroke: "white",
+                                    textAlign: "center",
+                                    font: "bold 12pt sans-serif"
+                                },
+                                {
+                                    doubleClick : function(e, node){
+                                        console.log(node)
+                                    }
+                                },
+                                new go.Binding("text", "key"))),
+                        // this Panel holds a Panel for each item object in the itemArray;
+                        // each item Panel is defined by the itemTemplate to be a TableRow in this Table
+                        $(go.Panel, "Table",
+                            {
+                                name: "TABLE",
+                                padding: 2,
+                                minSize: new go.Size(100, 10),
+                                defaultStretch: go.GraphObject.Horizontal,
+                                itemTemplate: fieldTemplate
+                            },
+                            new go.Binding("itemArray", "fields")
+                        )  // end Table Panel of items
+                    )  // end Vertical Panel
+                );  // end Node
+
+            // but use the default Link template, by not setting Diagram.linkTemplate
+
+            // create the model data that will be represented by Nodes and Links
+            myDiagram.contextMenu = myContextMenu;
+
+            function randomText() {
+                var str = "node_" + i;
+                i++;
+                return str;
+            }
+
+            function showContextMenu(obj, diagram, tool) {
+                // Show only the relevant buttons given the current state.
+                var cmd = diagram.commandHandler;
+                var hasMenuItem = false;
+                function maybeShowItem(elt, pred) {
+                    if (pred) {
+                        elt.style.display = "block";
+                        hasMenuItem = true;
+                    } else {
+                        elt.style.display = "none";
+                    }
+                }
+                maybeShowItem(document.getElementById("pro1"), cmd.canCutSelection());
+                maybeShowItem(document.getElementById("pro2"), cmd.canCopySelection());
+
+                // Now show the whole context menu element
+                if (hasMenuItem) {
+                    cxElement.classList.add("node-show-menu");
+                    // we don't bother overriding positionContextMenu, we just do it here:
+                    var mousePt = diagram.lastInput.viewPoint;
+                    cxElement.style.left = mousePt.x + 5 + "px";
+                    cxElement.style.top = mousePt.y + "px";
+                }
+
+                // Optional: Use a `window` click listener with event capture to
+                //           remove the context menu if the user clicks elsewhere on the page
+                window.addEventListener("click", hideCX, true);
+            }
+
+            function hideContextMenu() {
+                cxElement.classList.remove("node-show-menu");
+                // Optional: Use a `window` click listener with event capture to
+                //           remove the context menu if the user clicks elsewhere on the page
+                window.removeEventListener("click", hideCX, true);
+            }
+            function hideCX() {
+                if (myDiagram.currentTool instanceof go.ContextMenuTool) {
+                    myDiagram.currentTool.doCancel();
+                }
+            }
+
+        }
+
+    </script>
+</head>
+<body onload="init()">
+
+<div id="sample">
+    <div style="width: 100%; display: flex; justify-content: space-between">
+        <div id="paletteZone" style="width: 160px; height: 400px; margin-right: 2px; background-color: lightblue; padding: 10px;">
+            <div class="draggable" draggable="true" title="10">文件JSON</div>
+            <div class="draggable" draggable="true" title="11">文件EXCEL</div>
+            <div class="draggable" draggable="true" title="12">文件CSV</div>
+            <div class="draggable" draggable="true" title="20">接口</div>
+            <div class="draggable" draggable="true" title="30">库表</div>
+        </div>
+        <div id="myDiagramDiv" style="flex-grow: 1; height: 400px; border: solid 1px black"></div>
+        <ul id="contextMenu" class="node-menu">
+            <li id="pro1" class="node-menu-item" onclick="cxcommand(1)">编辑</li>
+            <li id="pro2" class="node-menu-item" onclick="cxcommand(2)">编辑1</li>
+        </ul>
+    </div>
+    <button onclick="openColMaps()">测试</button>
+
+</div>
+</body>
+<script type="text/javascript" th:inline="javascript">
+    /*<![CDATA[*/
+    function openColMaps() {
+        var newArr = [];
+        for (var i = 0; i < myDiagram.model.linkDataArray.length; i++) {
+            newArr.push({
+                from : myDiagram.model.linkDataArray[i].from,
+                to: myDiagram.model.linkDataArray[i].to,
+                color:"red"
+            })
+        }
+        newArr.push({
+            from : 'node_1',
+            to: 'node_2',
+        });
+        myDiagram.model.linkDataArray = newArr;
+    }
+
+    function cxcommand(type) {
+        var nodeOrLinkList = myDiagram.selection;
+        nodeOrLinkList.each(function(nodeOrLink) {
+            if(nodeOrLink instanceof go.Node){
+                var srType = nodeOrLink.data.srType;
+                if (type == 1) {
+                    openEdit(srType);
+                }
+            }
+        });
+
+    }
+    
+    function openEdit(srType) {
+        Frame.openDialog({
+            url: ctx + 'edit',
+            data: {
+                srType: srType
+            }
+        });
+    }
+
+    /*]]>*/
+</script>
+</html>

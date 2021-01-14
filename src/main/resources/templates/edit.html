@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>节点信息</title>
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/metro/easyui.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{jquery-easyui-1.9.7/themes/icon.css}">
+    <!-- 根路径 -->
+    <script type="text/javascript" th:inline="javascript">
+        /*<![CDATA[*/
+        ctx = /*[[@{/}]]*/ '';
+        /*]]>*/
+    </script>
+    <script type="text/javascript" th:src="@{jquery/jquery.min.js}"></script>
+    <script type="text/javascript" th:src="@{jquery-easyui-1.9.7/jquery.easyui.min.js}"></script>
+</head>
+<body>
+
+    <div class="easyui-panel" title="表信息" style="width:100%" th:if="${nodeType == '30'}">
+        <form>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="name" style="width:100%;" data-options="label:'数据源:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="email" style="width:100%" data-options="label:'类型:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="subject" style="width:100%" data-options="label:'表名:'" >
+            </div>
+        </form>
+    </div>
+
+    <div class="easyui-panel" title="文件信息" style="width:100%" th:if="${nodeType == '10'}">
+        <form >
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="name" style="width:100%;" data-options="label:'服务器:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="email" style="width:100%" data-options="label:'路径:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="subject" style="width:100%" data-options="label:'文件名:'" >
+            </div>
+        </form>
+    </div>
+
+    <div class="easyui-panel" title="接口信息" style="width:100%" th:if="${nodeType == '20'}">
+        <form >
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="name" style="width:100%;" data-options="label:'请求地址:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="email" style="width:100%" data-options="label:'请求类型:'" >
+            </div>
+            <div style="margin:10px 10px">
+                <input class="easyui-textbox" name="subject" style="width:100%" data-options="label:'接口名称:'" >
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>
