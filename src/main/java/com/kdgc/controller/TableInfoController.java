@@ -118,8 +118,8 @@ public class TableInfoController {
     public List<EasyUiCombo> getDbSource() {
         //TODO 资源库暂时设置测试数据
         List<EasyUiCombo> easyUiCombo = new ArrayList<>();
-        easyUiCombo.add(new EasyUiCombo("RSRC_14863586492416000", "192.168.62.44测试资源库"));
-        easyUiCombo.add(new EasyUiCombo("RSRC_14865608093466624", "192.168.62.45测试资源库"));
+        easyUiCombo.add(new EasyUiCombo("127.0.0.1:3306/crm", "192.168.62.44测试资源库"));
+        easyUiCombo.add(new EasyUiCombo("127.0.0.1:3306/db_forum", "192.168.62.45测试资源库"));
         return easyUiCombo;
     }
 

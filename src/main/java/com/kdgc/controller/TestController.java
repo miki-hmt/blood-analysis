@@ -40,10 +40,10 @@ public class TestController {
     @ResponseBody
     public void saveTable(String tableName) {
         long start = System.currentTimeMillis();
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 10; i++) {
             TableInfo tableInfo = new TableInfo();
-            tableInfo.setUrl("192.168.62.21:5258/test");
-            tableInfo.setDbType("gbase");
+            tableInfo.setUrl("127.0.0.1:3306/crm");
+            tableInfo.setDbType("mysql");
             tableInfo.setTableName(tableName + "_" + i);
             tableInfo.setSrType(SourceType.DB_TABLE.getType());
             tableInfoService.save(tableInfo);

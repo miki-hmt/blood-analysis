@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3307/dcweb?allowMultiQueries=true&serverTimezone=GMT%2B8
+    url: jdbc:mysql://127.0.0.1:3306/sharehoo_blog?allowMultiQueries=true&serverTimezone=GMT%2B8
     username: root
     password: root
   hikari:
@@ -21,7 +21,7 @@ spring:
     neo4j:
       uri: http://localhost:7474
       username: neo4j
-      password: 123456
+      password: miki12345
 
 #Neo4j驱动模式配置
 blotUri: bolt://localhost:7687
